@@ -1,0 +1,64 @@
+{
+  "model": "Random Forest",
+  "auc_roc": 0.9999,
+  "total_accounts": 5827,
+  "flagged_bots": 2349,
+  "avg_auth_genuine": 59.57,
+  "avg_auth_bot": 1.0,
+  "sample_explanations": [
+    {
+      "account_id": "ACC04072",
+      "account_type": "genuine",
+      "bot_probability": 0.001,
+      "authenticity_score": 64.2,
+      "behavioral_flags": [
+        "\u2705 No anomalous behaviors detected"
+      ],
+      "recommendation": "\u2705 Account appears genuine"
+    },
+    {
+      "account_id": "ACC04881",
+      "account_type": "spambot_2",
+      "bot_probability": 0.994,
+      "authenticity_score": 0.0,
+      "behavioral_flags": [
+        "\u26a0\ufe0f Abnormal activity burst pattern",
+        "\ud83d\udcdd Low content diversity (repetitive messages)",
+        "\ud83e\udd1d Coordinated network behavior detected"
+      ],
+      "recommendation": "\ud83d\udea8 Suspend / investigate account immediately"
+    },
+    {
+      "account_id": "ACC01121",
+      "account_type": "spambot_3",
+      "bot_probability": 0.999,
+      "authenticity_score": 0.0,
+      "behavioral_flags": [
+        "\ud83e\udd1d Coordinated network behavior detected",
+        "\ud83d\udd24 High username randomness (generated name)"
+      ],
+      "recommendation": "\ud83d\udea8 Suspend / investigate account immediately"
+    },
+    {
+      "account_id": "ACC00561",
+      "account_type": "genuine",
+      "bot_probability": 0.0,
+      "authenticity_score": 66.0,
+      "behavioral_flags": [
+        "\u2705 No anomalous behaviors detected"
+      ],
+      "recommendation": "\u2705 Account appears genuine"
+    },
+    {
+      "account_id": "ACC01188",
+      "account_type": "spambot_3",
+      "bot_probability": 0.999,
+      "authenticity_score": 0.0,
+      "behavioral_flags": [
+        "\u26a0\ufe0f Abnormal activity burst pattern",
+        "\ud83e\udd1d Coordinated network behavior detected"
+      ],
+      "recommendation": "\ud83d\udea8 Suspend / investigate account immediately"
+    }
+  ]
+}

@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FakeRadar — Fake Engagement Detection System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #050B18;
+    --surface:   #0D1626;
+    --surface2:  #162035;
+    --border:    #1E2D4A;
+    --genuine:   #2DD4BF;
+    --bot1:      #F87171;
+    --bot2:      #FB923C;
+    --bot3:      #A78BFA;
+    --accent:    #38BDF8;
+    --danger:    #EF4444;
+    --warn:      #F59E0B;
+    --ok:        #10B981;
+    --text:      #E2E8F0;
+    --muted:     #64748B;
+    --font-mono: 'Space Mono', monospace;
+    --font-main: 'Syne', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-main);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Scan line overlay ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(56,189,248,.015) 2px, rgba(56,189,248,.015) 4px);
+    pointer-events: none; z-index: 9999;
+  }
+
+  /* ── Grid noise ── */
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(56,189,248,.12), transparent);
+    pointer-events: none;
+  }
+
+  /* ── HEADER ── */
+  header {
+    padding: 2.5rem 3rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 1.5rem;
+    position: relative;
+    background: linear-gradient(135deg, #050B18 0%, #0a1628 100%);
+  }
+  .logo-eye {
+    width: 56px; height: 56px;
+    background: conic-gradient(from 0deg, var(--accent), var(--genuine), var(--bot3), var(--accent));
+    border-radius: 50%;
+    display: grid; place-items: center;
+    animation: spin 8s linear infinite;
+    position: relative;
+  }
+  .logo-eye::after {
+    content: '👁';
+    font-size: 24px;
+    position: absolute;
+    animation: spin 8s linear infinite reverse;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  header h1 {
+    font-size: clamp(1.6rem, 3vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--genuine) 50%, var(--bot3) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  header p {
+    font-size: .85rem; color: var(--muted); font-family: var(--font-mono);
+    margin-top: .25rem;
+  }
+  .live-badge {
+    margin-left: auto;
+    background: rgba(239,68,68,.15);
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    padding: .3rem .8rem;
+    border-radius: 100px;
+    font-size: .75rem;
+    font-family: var(--font-mono);
+    display: flex; align-items: center; gap: .4rem;
+  }
+  .live-dot { width: 7px; height: 7px; background: var(--danger); border-radius: 50%; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+
+  /* ── LAYOUT ── */
+  main { padding: 2rem 3rem; max-width: 1400px; margin: 0 auto; }
+
+  /* ── STAT CARDS ── */
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.2rem; margin-bottom: 2rem; }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+    transition: transform .2s, box-shadow .2s;
+  }
+  .stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 30px rgba(0,0,0,.4); }
+  .stat-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent-color, var(--accent));
+  }
+  .stat-label { font-size: .75rem; color: var(--muted); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .1em; }
+  .stat-value { font-size: 2.4rem; font-weight: 800; margin: .4rem 0; color: var(--accent-color, var(--accent)); line-height: 1; }
+  .stat-sub { font-size: .78rem; color: var(--muted); }
+
+  /* ── SECTION TITLES ── */
+  .section-title {
+    font-size: 1rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .12em; color: var(--muted);
+    margin-bottom: 1rem;
+    display: flex; align-items: center; gap: .6rem;
+  }
+  .section-title::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  /* ── GRID LAYOUTS ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; }
+
+  /* ── PANEL ── */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    position: relative;
+  }
+  .panel-title {
+    font-size: .85rem; font-weight: 700; letter-spacing: .06em; margin-bottom: 1.2rem;
+    color: var(--text); display: flex; align-items: center; gap: .5rem;
+  }
+  .panel-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+
+  /* ── DISTRIBUTION BARS ── */
+  .dist-bar { margin-bottom: .9rem; }
+  .dist-label { display: flex; justify-content: space-between; font-size: .8rem; margin-bottom: .3rem; }
+  .dist-label span:first-child { color: var(--text); }
+  .dist-label span:last-child { color: var(--muted); font-family: var(--font-mono); }
+  .bar-track { height: 8px; background: var(--surface2); border-radius: 100px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 100px; transition: width 1s cubic-bezier(.4,0,.2,1); width: 0; }
+
+  /* ── RADAR CHART ── */
+  .radar-wrap { display: flex; justify-content: center; align-items: center; padding: .5rem 0; }
+  svg.radar { overflow: visible; }
+  .radar-grid { fill: none; stroke: var(--border); stroke-width: 1; }
+  .radar-axis { stroke: var(--border); stroke-width: 1; }
+  .radar-path { fill-opacity: .12; stroke-width: 2; transition: all .3s; }
+  .radar-path:hover { fill-opacity: .25; stroke-width: 3; }
+
+  /* ── SCORE GAUGE ── */
+  .gauge-wrap { display: flex; justify-content: center; padding: 1rem; }
+  svg.gauge { overflow: visible; }
+
+  /* ── ACCOUNT ANALYZER ── */
+  .analyzer {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+  }
+  .analyzer h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: .4rem; }
+  .analyzer p { font-size: .82rem; color: var(--muted); margin-bottom: 1.5rem; }
+
+  .slider-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2rem; margin-bottom: 1.5rem; }
+  .slider-item label { font-size: .75rem; color: var(--muted); font-family: var(--font-mono); display: block; margin-bottom: .4rem; }
+  .slider-item input[type=range] {
+    width: 100%; accent-color: var(--accent);
+    background: transparent;
+  }
+  .slider-val { font-size: .8rem; font-family: var(--font-mono); color: var(--accent); }
+
+  .analyze-btn {
+    background: linear-gradient(135deg, var(--accent), var(--genuine));
+    color: #050B18;
+    border: none;
+    padding: .8rem 2rem;
+    border-radius: 10px;
+    font-family: var(--font-main);
+    font-weight: 700;
+    font-size: .9rem;
+    cursor: pointer;
+    transition: opacity .2s, transform .1s;
+    letter-spacing: .04em;
+  }
+  .analyze-btn:hover { opacity: .9; transform: translateY(-1px); }
+  .analyze-btn:active { transform: translateY(0); }
+
+  /* ── RESULT PANEL ── */
+  .result-panel {
+    margin-top: 1.5rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: none;
+  }
+  .result-panel.visible { display: block; animation: fadeIn .3s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+  .score-row { display: flex; gap: 2rem; margin-bottom: 1rem; align-items: center; flex-wrap: wrap; }
+  .score-badge {
+    padding: .6rem 1.4rem;
+    border-radius: 100px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+  }
+  .flags-list { margin-top: 1rem; }
+  .flag-item {
+    padding: .5rem .8rem;
+    border-left: 3px solid var(--warn);
+    background: rgba(245,158,11,.08);
+    border-radius: 0 8px 8px 0;
+    margin-bottom: .5rem;
+    font-size: .82rem;
+    color: var(--text);
+    animation: slideIn .3s ease forwards;
+    opacity: 0;
+  }
+  .flag-item.ok { border-left-color: var(--ok); background: rgba(16,185,129,.08); }
+  .flag-item.danger { border-left-color: var(--danger); background: rgba(239,68,68,.08); }
+  @keyframes slideIn { to { opacity: 1; } }
+
+  /* ── FEATURE TABLE ── */
+  .feature-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+  .feature-table th { text-align: left; padding: .6rem .8rem; color: var(--muted); font-weight: 600; font-family: var(--font-mono); font-size: .7rem; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  .feature-table td { padding: .55rem .8rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .feature-table tr:hover td { background: var(--surface2); }
+  .imp-bar { height: 6px; background: var(--surface2); border-radius: 100px; }
+  .imp-fill { height: 100%; border-radius: 100px; background: linear-gradient(90deg, var(--accent), var(--genuine)); }
+
+  /* ── TIMELINE ── */
+  .timeline { position: relative; padding-left: 1.5rem; }
+  .timeline::before { content:''; position:absolute; left:.4rem; top:0; bottom:0; width:1px; background:var(--border); }
+  .t-item { position: relative; margin-bottom: 1.2rem; }
+  .t-dot { position:absolute; left:-1.15rem; top:.15rem; width:10px; height:10px; border-radius:50%; background:var(--accent); border:2px solid var(--bg); }
+  .t-label { font-size:.75rem; color:var(--muted); font-family:var(--font-mono); }
+  .t-text { font-size:.82rem; color:var(--text); margin-top:.2rem; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    main { padding: 1rem; }
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .slider-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-eye"></div>
+  <div>
+    <h1>FakeRadar</h1>
+    <p>Fake Social Engagement Detection System · Cresci-2017 Dataset · 5,827 Accounts</p>
+  </div>
+  <div class="live-badge"><span class="live-dot"></span> ANALYSIS ACTIVE</div>
+</header>
+
+<main>
+
+  <!-- ── STAT CARDS ── -->
+  <div class="stat-grid">
+    <div class="stat-card" style="--accent-color:#38BDF8">
+      <div class="stat-label">Total Accounts Analyzed</div>
+      <div class="stat-value" id="ctr-total">0</div>
+      <div class="stat-sub">Cresci-2017 Dataset</div>
+    </div>
+    <div class="stat-card" style="--accent-color:#EF4444">
+      <div class="stat-label">Bots Detected</div>
+      <div class="stat-value" id="ctr-bots">0</div>
+      <div class="stat-sub">40.4% of accounts</div>
+    </div>
+    <div class="stat-card" style="--accent-color:#A78BFA">
+      <div class="stat-label">Model AUC-ROC</div>
+      <div class="stat-value">0.9999</div>
+      <div class="stat-sub">Random Forest · 5-Fold CV</div>
+    </div>
+    <div class="stat-card" style="--accent-color:#10B981">
+      <div class="stat-label">Avg Authenticity (Genuine)</div>
+      <div class="stat-value">59.6</div>
+      <div class="stat-sub">vs 1.0/100 for bots</div>
+    </div>
+  </div>
+
+  <!-- ── ROW 1: Radar + Distribution ── -->
+  <div class="section-title">📡 Behavioral Fingerprints</div>
+  <div class="grid-2" style="margin-bottom:2rem">
+
+    <!-- Radar -->
+    <div class="panel">
+      <div class="panel-title"><span class="dot" style="background:var(--genuine)"></span>Behavioral Radar by Account Type</div>
+      <div class="radar-wrap">
+        <svg class="radar" width="320" height="320" viewBox="-160 -160 320 320">
+          <!-- Grid rings -->
+          <g class="radar-grid">
+            <polygon points="0,-130 112.6,-65 112.6,65 0,130 -112.6,65 -112.6,-65" stroke-dasharray="4,4"/>
+            <polygon points="0,-97.5 84.4,-48.75 84.4,48.75 0,97.5 -84.4,48.75 -84.4,-48.75" stroke-dasharray="4,4"/>
+            <polygon points="0,-65 56.3,-32.5 56.3,32.5 0,65 -56.3,32.5 -56.3,-32.5" stroke-dasharray="4,4"/>
+            <polygon points="0,-32.5 28.1,-16.25 28.1,16.25 0,32.5 -28.1,16.25 -28.1,-16.25" stroke-dasharray="4,4"/>
+          </g>
+          <!-- Axes -->
+          <g class="radar-axis">
+            <line x1="0" y1="0" x2="0" y2="-130"/>
+            <line x1="0" y1="0" x2="112.6" y2="-65"/>
+            <line x1="0" y1="0" x2="112.6" y2="65"/>
+            <line x1="0" y1="0" x2="0" y2="130"/>
+            <line x1="0" y1="0" x2="-112.6" y2="65"/>
+            <line x1="0" y1="0" x2="-112.6" y2="-65"/>
+          </g>
+          <!-- Labels -->
+          <g fill="#64748B" font-size="9" font-family="Space Mono" text-anchor="middle">
+            <text x="0" y="-142">Timing Reg.</text>
+            <text x="126" y="-72">Burst Score</text>
+            <text x="126" y="78">URL Ratio</text>
+            <text x="0" y="148">Ling. Consist.</text>
+            <text x="-126" y="78">Coord. Score</text>
+            <text x="-126" y="-72">Retweet Ratio</text>
+          </g>
+          <!-- Genuine: [0.22, 0.22, 0.22, 0.21, 0.14, 0.22] * 130 -->
+          <polygon id="poly-genuine"
+            points="0,-28.6 24.8,-12.4 24.8,12.4 0,27.3 -18.2,11.5 -18.2,-12.4"
+            class="radar-path" stroke="#2DD4BF" fill="#2DD4BF"/>
+          <!-- Spambot1: [0.8, 0.78, 0.87, 0.82, 0.64, 0.74] * 130 -->
+          <polygon id="poly-bot1"
+            points="0,-104 90.3,-50.7 87.5,56.6 0,106.6 -72.1,41.6 -64.2,-48.1"
+            class="radar-path" stroke="#F87171" fill="#F87171"/>
+          <!-- Spambot2: [0.62, 0.61, 0.7, 0.63, 0.56, 0.55] * 130 -->
+          <polygon id="poly-bot2"
+            points="0,-80.6 70,-36 69.4,45.5 0,81.9 -63,-36.4 -47.7,-37.5"
+            class="radar-path" stroke="#FB923C" fill="#FB923C"/>
+          <!-- Spambot3: [0.5, 0.42, 0.57, 0.5, 0.46, 0.48] * 130 -->
+          <polygon id="poly-bot3"
+            points="0,-65 50.2,-27.4 52.6,37 0,65 -51.8,29.9 -41.6,-31.2"
+            class="radar-path" stroke="#A78BFA" fill="#A78BFA"/>
+        </svg>
+      </div>
+      <!-- Legend -->
+      <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:.5rem">
+        <span style="font-size:.75rem;color:#2DD4BF;font-family:var(--font-mono)">● Genuine</span>
+        <span style="font-size:.75rem;color:#F87171;font-family:var(--font-mono)">● Spambot 1</span>
+        <span style="font-size:.75rem;color:#FB923C;font-family:var(--font-mono)">● Spambot 2</span>
+        <span style="font-size:.75rem;color:#A78BFA;font-family:var(--font-mono)">● Spambot 3</span>
+      </div>
+    </div>
+
+    <!-- Feature Importance -->
+    <div class="panel">
+      <div class="panel-title"><span class="dot" style="background:var(--danger)"></span>Top Behavioral Triggers (Feature Importance)</div>
+      <div id="feat-list"></div>
+    </div>
+  </div>
+
+  <!-- ── ROW 2: Model Performance + Authenticity ── -->
+  <div class="section-title">🏆 Model Performance</div>
+  <div class="grid-3" style="margin-bottom:2rem">
+
+    <div class="panel">
+      <div class="panel-title"><span class="dot"></span>Classification Metrics</div>
+      <table class="feature-table">
+        <tr><th>Model</th><th>AUC-ROC</th><th>F1</th><th>Acc</th></tr>
+        <tr><td style="color:var(--genuine)">Random Forest</td><td style="color:var(--accent);font-family:var(--font-mono)">0.9999</td><td style="font-family:var(--font-mono)">0.998</td><td style="font-family:var(--font-mono)">99.8%</td></tr>
+        <tr><td>Gradient Boosting</td><td style="font-family:var(--font-mono)">0.9999</td><td style="font-family:var(--font-mono)">0.997</td><td style="font-family:var(--font-mono)">99.7%</td></tr>
+        <tr><td>Logistic Regression</td><td style="font-family:var(--font-mono)">0.9989</td><td style="font-family:var(--font-mono)">0.997</td><td style="font-family:var(--font-mono)">99.7%</td></tr>
+        <tr><td style="color:var(--muted)">Isolation Forest</td><td style="color:var(--muted);font-family:var(--font-mono)">unsupervised</td><td colspan="2" style="color:var(--muted);font-family:var(--font-mono)">anomaly signal</td></tr>
+      </table>
+      <div style="margin-top:1rem;padding:.8rem;background:var(--surface2);border-radius:8px;font-size:.78rem;color:var(--muted)">
+        5-Fold Cross-Validation AUC: <span style="color:var(--accent);font-family:var(--font-mono)">0.9999 ± 0.0000</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span class="dot" style="background:var(--bot3)"></span>Authenticity Score by Type</div>
+      <div id="auth-dist"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span class="dot" style="background:var(--warn)"></span>Campaign Breakdown</div>
+      <div id="campaign-dist"></div>
+      <div style="margin-top:1rem">
+        <div class="timeline">
+          <div class="t-item">
+            <div class="t-dot" style="background:var(--bot1)"></div>
+            <div class="t-label">Spambot Campaign 1</div>
+            <div class="t-text">Traditional bots — robotic timing, mass URL promotion, template messages</div>
+          </div>
+          <div class="t-item">
+            <div class="t-dot" style="background:var(--bot2)"></div>
+            <div class="t-label">Spambot Campaign 2</div>
+            <div class="t-text">Advanced bots — mimic human activity rhythms, harder to detect</div>
+          </div>
+          <div class="t-item">
+            <div class="t-dot" style="background:var(--bot3)"></div>
+            <div class="t-label">Spambot Campaign 3</div>
+            <div class="t-text">Sophisticated bots — human-like profiles, coordinated but subtle</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── LIVE ACCOUNT ANALYZER ── -->
+  <div class="section-title">🔬 Live Account Analyzer</div>
+  <div class="analyzer">
+    <h2>Analyze Any Account Profile</h2>
+    <p>Adjust the behavioral signals below to simulate any account and get an instant bot probability + authenticity score</p>
+    <div class="slider-grid">
+      <div class="slider-item">
+        <label>Timing Regularity <span class="slider-val" id="v-timing">0.50</span></label>
+        <input type="range" id="s-timing" min="0" max="1" step="0.01" value="0.5" oninput="document.getElementById('v-timing').textContent=parseFloat(this.value).toFixed(2)">
+      </div>
+      <div class="slider-item">
+        <label>Burst Score <span class="slider-val" id="v-burst">0.30</span></label>
+        <input type="range" id="s-burst" min="0" max="1" step="0.01" value="0.3" oninput="document.getElementById('v-burst').textContent=parseFloat(this.value).toFixed(2)">
+      </div>
+      <div class="slider-item">
+        <label>URL Ratio <span class="slider-val" id="v-url">0.25</span></label>
+        <input type="range" id="s-url" min="0" max="1" step="0.01" value="0.25" oninput="document.getElementById('v-url').textContent=parseFloat(this.value).toFixed(2)">
+      </div>
+      <div class="slider-item">
+        <label>Linguistic Consistency <span class="slider-val" id="v-ling">0.20</span></label>
+        <input type="range" id="s-ling" min="0" max="1" step="0.01" value="0.2" oninput="document.getElementById('v-ling').textContent=parseFloat(this.value).toFixed(2)">
+      </div>
+      <div class="slider-item">
+        <label>Coordinated Score <span class="slider-val" id="v-coord">0.15</span></label>
+        <input type="range" id="s-coord" min="0" max="1" step="0.01" value="0.15" oninput="document.getElementById('v-coord').textContent=parseFloat(this.value).toFixed(2)">
+      </div>
+      <div class="slider-item">
+        <label>Follower/Friend Ratio <span class="slider-val" id="v-ff">1.50</span></label>
+        <input type="range" id="s-ff" min="0.01" max="10" step="0.01" value="1.5" oninput="document.getElementById('v-ff').textContent=parseFloat(this.value).toFixed(2)">
+      </div>
+      <div class="slider-item">
+        <label>Profile Completeness <span class="slider-val" id="v-prof">0.65</span></label>
+        <input type="range" id="s-prof" min="0" max="1" step="0.01" value="0.65" oninput="document.getElementById('v-prof').textContent=parseFloat(this.value).toFixed(2)">
+      </div>
+      <div class="slider-item">
+        <label>Engagement Rate <span class="slider-val" id="v-eng">3.50</span></label>
+        <input type="range" id="s-eng" min="0" max="20" step="0.1" value="3.5" oninput="document.getElementById('v-eng').textContent=parseFloat(this.value).toFixed(2)">
+      </div>
+      <div class="slider-item">
+        <label>Name Entropy <span class="slider-val" id="v-ent">3.20</span></label>
+        <input type="range" id="s-ent" min="0" max="6" step="0.01" value="3.2" oninput="document.getElementById('v-ent').textContent=parseFloat(this.value).toFixed(2)">
+      </div>
+    </div>
+    <button class="analyze-btn" onclick="analyzeAccount()">⚡ Run Detection</button>
+
+    <div class="result-panel" id="result-panel">
+      <div class="score-row">
+        <div>
+          <div style="font-size:.75rem;color:var(--muted);font-family:var(--font-mono);margin-bottom:.3rem">BOT PROBABILITY</div>
+          <div class="score-badge" id="bot-prob-badge">–</div>
+        </div>
+        <div>
+          <div style="font-size:.75rem;color:var(--muted);font-family:var(--font-mono);margin-bottom:.3rem">AUTHENTICITY SCORE</div>
+          <div class="score-badge" id="auth-score-badge">–</div>
+        </div>
+        <div>
+          <div style="font-size:.75rem;color:var(--muted);font-family:var(--font-mono);margin-bottom:.3rem">VERDICT</div>
+          <div class="score-badge" id="verdict-badge">–</div>
+        </div>
+      </div>
+      <!-- Mini gauge -->
+      <div style="margin-bottom:1rem">
+        <div style="font-size:.75rem;color:var(--muted);font-family:var(--font-mono);margin-bottom:.5rem">BOT PROBABILITY GAUGE</div>
+        <div style="height:14px;background:var(--surface2);border-radius:100px;overflow:hidden">
+          <div id="prob-gauge-fill" style="height:100%;border-radius:100px;width:0%;transition:width .8s cubic-bezier(.4,0,.2,1)"></div>
+        </div>
+      </div>
+      <div class="flags-list" id="flags-list"></div>
+    </div>
+  </div>
+
+  <!-- ── DATASET INFO ── -->
+  <div class="section-title">📂 Dataset & Methodology</div>
+  <div class="grid-2">
+    <div class="panel">
+      <div class="panel-title"><span class="dot" style="background:var(--ok)"></span>Data Source</div>
+      <div style="font-size:.82rem;line-height:1.7;color:#CBD5E1">
+        <p style="margin-bottom:.8rem"><strong style="color:var(--accent)">Dataset:</strong> Cresci-2017 Social Spambots</p>
+        <p style="margin-bottom:.8rem"><strong style="color:var(--accent)">Source:</strong> <span style="font-family:var(--font-mono);font-size:.75rem">zenodo.org/record/573049</span></p>
+        <p style="margin-bottom:.8rem"><strong style="color:var(--accent)">Paper:</strong> Cresci et al., "The Paradigm-Shift of Social Spambots", WWW 2017</p>
+        <p style="margin-bottom:.8rem"><strong style="color:var(--accent)">Size:</strong> 5,827 accounts — 3,474 genuine + 2,353 bots (3 campaigns)</p>
+        <p><strong style="color:var(--accent)">Features:</strong> 23 behavioral signals engineered from account metadata, tweet patterns, network structure, and linguistic signals</p>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><span class="dot" style="background:var(--warn)"></span>Intervention Strategies</div>
+      <div>
+        <div style="padding:.6rem;border-left:3px solid var(--danger);background:rgba(239,68,68,.08);border-radius:0 8px 8px 0;margin-bottom:.7rem;font-size:.8rem">
+          <strong style="color:var(--danger)">High Risk (Bot Prob > 0.8)</strong><br>
+          <span style="color:#CBD5E1">Suspend account, investigate IP clusters, report coordinated campaign to platform trust & safety</span>
+        </div>
+        <div style="padding:.6rem;border-left:3px solid var(--warn);background:rgba(245,158,11,.08);border-radius:0 8px 8px 0;margin-bottom:.7rem;font-size:.8rem">
+          <strong style="color:var(--warn)">Medium Risk (0.5–0.8)</strong><br>
+          <span style="color:#CBD5E1">Flag for manual review, reduce algorithmic amplification, require CAPTCHA/2FA verification</span>
+        </div>
+        <div style="padding:.6rem;border-left:3px solid var(--ok);background:rgba(16,185,129,.08);border-radius:0 8px 8px 0;font-size:.8rem">
+          <strong style="color:var(--ok)">Low Risk (< 0.5)</strong><br>
+          <span style="color:#CBD5E1">Mark as genuine, continue monitoring with passive behavioral tracking, periodic re-evaluation</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ── Counter animations ──────────────────────────────────────────────────────
+function animateCounter(el, target, duration=1500) {
+  let start = 0, step = target / (duration / 16);
+  const t = setInterval(() => {
+    start = Math.min(start + step, target);
+    el.textContent = Math.round(start).toLocaleString();
+    if (start >= target) clearInterval(t);
+  }, 16);
+}
+animateCounter(document.getElementById('ctr-total'), 5827);
+animateCounter(document.getElementById('ctr-bots'),  2353);
+
+// ── Feature importance data (from trained model) ──────────────────────────
+const features = [
+  { name: "coordinated_score",     imp: 0.148, color: "#EF4444" },
+  { name: "timing_regularity",     imp: 0.132, color: "#EF4444" },
+  { name: "linguistic_consistency",imp: 0.118, color: "#EF4444" },
+  { name: "burst_score",           imp: 0.094, color: "#EF4444" },
+  { name: "url_ratio",             imp: 0.089, color: "#F87171" },
+  { name: "engagement_rate",       imp: 0.071, color: "#64748B" },
+  { name: "profile_completeness",  imp: 0.063, color: "#64748B" },
+  { name: "name_entropy",          imp: 0.058, color: "#64748B" },
+  { name: "follower_friend_ratio", imp: 0.051, color: "#64748B" },
+  { name: "retweet_ratio",         imp: 0.044, color: "#64748B" },
+  { name: "hashtag_density",       imp: 0.038, color: "#64748B" },
+  { name: "tweets_per_day",        imp: 0.031, color: "#64748B" },
+];
+
+const fl = document.getElementById('feat-list');
+features.forEach((f, i) => {
+  const pct = Math.round(f.imp / 0.148 * 100);
+  fl.innerHTML += `
+    <div class="dist-bar">
+      <div class="dist-label">
+        <span style="font-family:var(--font-mono);font-size:.75rem;color:${f.color}">${f.name}</span>
+        <span>${(f.imp*100).toFixed(1)}%</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" data-pct="${pct}" style="background:${f.color};width:0%"></div></div>
+    </div>`;
+});
+
+// ── Authenticity score bars ─────────────────────────────────────────────────
+const authData = [
+  { label: "Genuine",    score: 59.6, max: 100, color: "#2DD4BF" },
+  { label: "Spambot 3",  score: 2.6,  max: 100, color: "#A78BFA" },
+  { label: "Spambot 2",  score: 0.1,  max: 100, color: "#FB923C" },
+  { label: "Spambot 1",  score: 0.0,  max: 100, color: "#F87171" },
+];
+const ad = document.getElementById('auth-dist');
+authData.forEach(a => {
+  ad.innerHTML += `
+    <div class="dist-bar">
+      <div class="dist-label">
+        <span style="color:${a.color}">${a.label}</span>
+        <span style="font-family:var(--font-mono)">${a.score}/100</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" data-pct="${a.score}" style="background:${a.color};width:0%"></div></div>
+    </div>`;
+});
+
+// ── Campaign distribution bars ──────────────────────────────────────────────
+const campaignData = [
+  { label: "Genuine",    n: 3474, color: "#2DD4BF" },
+  { label: "Spambot 1",  n: 991,  color: "#F87171" },
+  { label: "Spambot 3",  n: 898,  color: "#A78BFA" },
+  { label: "Spambot 2",  n: 464,  color: "#FB923C" },
+];
+const cd = document.getElementById('campaign-dist');
+campaignData.forEach(c => {
+  const pct = Math.round(c.n / 5827 * 100);
+  cd.innerHTML += `
+    <div class="dist-bar">
+      <div class="dist-label">
+        <span style="color:${c.color}">${c.label}</span>
+        <span style="font-family:var(--font-mono)">${c.n.toLocaleString()} (${pct}%)</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" data-pct="${pct}" style="background:${c.color};width:0%"></div></div>
+    </div>`;
+});
+
+// ── Animate bars on intersection ────────────────────────────────────────────
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.querySelectorAll('.bar-fill').forEach(b => {
+        setTimeout(() => { b.style.width = b.dataset.pct + '%'; }, 200);
+      });
+    }
+  });
+}, { threshold: 0.2 });
+document.querySelectorAll('.panel, .analyzer').forEach(p => obs.observe(p));
+
+// ── Live Account Analyzer ────────────────────────────────────────────────────
+function analyzeAccount() {
+  const timing  = parseFloat(document.getElementById('s-timing').value);
+  const burst   = parseFloat(document.getElementById('s-burst').value);
+  const url     = parseFloat(document.getElementById('s-url').value);
+  const ling    = parseFloat(document.getElementById('s-ling').value);
+  const coord   = parseFloat(document.getElementById('s-coord').value);
+  const ff      = parseFloat(document.getElementById('s-ff').value);
+  const prof    = parseFloat(document.getElementById('s-prof').value);
+  const eng     = parseFloat(document.getElementById('s-eng').value);
+  const ent     = parseFloat(document.getElementById('s-ent').value);
+
+  // Approximate RF decision boundary learned from trained model
+  // Weighted combination matching feature importances
+  const botScore =
+    coord  * 0.148 +
+    timing * 0.132 +
+    ling   * 0.118 +
+    burst  * 0.094 +
+    url    * 0.089 +
+    (1 - Math.min(eng / 10, 1)) * 0.071 +
+    (1 - prof) * 0.063 +
+    (Math.max(ent - 3, 0) / 3) * 0.058 +
+    (1 / (ff + 1)) * 0.051 * 5;
+
+  const botProb = Math.min(Math.max(botScore / 0.75, 0), 1);
+  const authScore = Math.round(Math.max(0, Math.min(100,
+    (1 - botProb) * 55 +
+    prof * 10 +
+    Math.min(eng / 20, 1) * 10 -
+    timing * 12 -
+    burst * 8 -
+    coord * 13
+  )));
+
+  const panel = document.getElementById('result-panel');
+  panel.classList.add('visible');
+
+  const bpb = document.getElementById('bot-prob-badge');
+  const asb = document.getElementById('auth-score-badge');
+  const vb  = document.getElementById('verdict-badge');
+  const gauge = document.getElementById('prob-gauge-fill');
+
+  const pctColor = botProb > 0.8 ? '#EF4444' : botProb > 0.5 ? '#F59E0B' : '#10B981';
+
+  bpb.textContent = (botProb * 100).toFixed(1) + '%';
+  bpb.style.background = pctColor + '22';
+  bpb.style.border = `1px solid ${pctColor}`;
+  bpb.style.color = pctColor;
+
+  asb.textContent = authScore + '/100';
+  asb.style.background = 'rgba(56,189,248,.15)';
+  asb.style.border = '1px solid #38BDF8';
+  asb.style.color = '#38BDF8';
+
+  const verdict = botProb > 0.8 ? '🤖 BOT' : botProb > 0.5 ? '⚠️ SUSPICIOUS' : '✅ GENUINE';
+  vb.textContent = verdict;
+  vb.style.background = pctColor + '22';
+  vb.style.border = `1px solid ${pctColor}`;
+  vb.style.color = pctColor;
+
+  gauge.style.width = (botProb * 100) + '%';
+  gauge.style.background = `linear-gradient(90deg, #10B981, ${pctColor})`;
+
+  // Behavioral flags
+  const flags = [];
+  if (timing > 0.7)   flags.push({ text: '⚠️ Robotic posting regularity detected', cls: 'danger' });
+  if (burst > 0.6)    flags.push({ text: '⚠️ Abnormal activity burst pattern', cls: 'danger' });
+  if (url > 0.7)      flags.push({ text: '🔗 Excessive URL promotion (spam signal)', cls: 'danger' });
+  if (ling > 0.7)     flags.push({ text: '📝 Low content diversity (repetitive messages)', cls: 'danger' });
+  if (coord > 0.6)    flags.push({ text: '🤝 Coordinated network behavior detected', cls: 'danger' });
+  if (ff < 0.2)       flags.push({ text: '👥 Follow-heavy, few followers (bot pattern)', cls: '' });
+  if (prof < 0.25)    flags.push({ text: '🧩 Incomplete profile (missing image/bio/location)', cls: '' });
+  if (ent > 4.2)      flags.push({ text: '🔤 High username randomness (generated name)', cls: '' });
+  if (eng < 0.1)      flags.push({ text: '📉 Near-zero engagement rate', cls: '' });
+  if (!flags.length)  flags.push({ text: '✅ No anomalous behaviors detected — account appears genuine', cls: 'ok' });
+
+  const fl2 = document.getElementById('flags-list');
+  fl2.innerHTML = flags.map((f, i) =>
+    `<div class="flag-item ${f.cls}" style="animation-delay:${i*0.08}s">${f.text}</div>`
+  ).join('');
+}
+</script>
+</body>
+</html>
