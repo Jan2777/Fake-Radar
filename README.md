@@ -272,29 +272,3 @@ Clipped to [0, 100]
 | < 50% | 🟢 LOW | Mark genuine. Passive monitoring. Re-evaluate quarterly. |
 
 ---
-
-## 📚 References
-
-1. Cresci, S., Di Pietro, R., Petrocchi, M., Spognardi, A., & Tesconi, M. (2017). **The Paradigm-Shift of Social Spambots: Evidence, Theories, and Tools for the Arms Race**. In Proceedings of the 26th International Conference on World Wide Web (WWW 2017). https://doi.org/10.1145/3041021.3055135
-
-2. Cresci, S. (2017). **Cresci-2017 Dataset**. Zenodo. https://doi.org/10.5281/zenodo.573049
-
-3. Varol, O., Ferrara, E., Davis, C. A., Menczer, F., & Flammini, A. (2017). **Online Human-Bot Interactions: Detection, Estimation, and Characterization**. ICWSM.
-
-4. Liu, F. T., Ting, K. M., & Zhou, Z. H. (2008). **Isolation Forest**. ICDM 2008.
-
----
-
-## 📋 Submission Checklist
-
-- [x] Public GitHub repository
-- [x] Clean, well-structured source code with docstrings
-- [x] Dataset with full documentation (source, why it fits, features engineered)
-- [x] README with how-to-run instructions
-- [x] Model Explanation Document (5 pages, `/docs/`)
-- [x] Interactive visualization dashboard (`dashboard.html`)
-- [x] Predictions CSV + results JSON
-
----
-
-*Built for the OrgX Behavioural Analytics Hackathon 2025*
