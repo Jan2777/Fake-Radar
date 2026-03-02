@@ -1,4 +1,4 @@
-# 🔍 FakeRadar — Fake Engagement Detection System
+# 🔍 FakeRadar : Fake Engagement Detection System
 
 > **Behavioural Analytics Hackathon · Problem Statement 3**  
 > Detecting social media bots and coordinated inauthentic behaviour using the Cresci-2017 dataset
