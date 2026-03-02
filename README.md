@@ -99,7 +99,7 @@ fake_engagement_detector/
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/YOUR_USERNAME/fake-engagement-detector.git
+git clone https://github.com/Jan2777/Fake-Radar
 cd fake-engagement-detector
 ```
 
